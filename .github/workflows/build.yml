@@ -1,0 +1,45 @@
+name: Build DMG
+
+on:
+  push:
+    branches: [feature/light-theme]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -project smux.xcodeproj -scheme smux
+
+      - name: Build
+        run: |
+          xcodebuild -project smux.xcodeproj \
+            -scheme smux \
+            -configuration Release \
+            -derivedDataPath build \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create DMG
+        run: |
+          APP_PATH="build/Build/Products/Release/smux.app"
+          DMG_NAME="smux-light-theme.dmg"
+          # Create a temporary folder for DMG contents
+          mkdir -p dmg_contents
+          cp -R "$APP_PATH" dmg_contents/
+          # Create DMG
+          hdiutil create -volname "smux" -srcfolder dmg_contents -ov -format UDZO "$DMG_NAME"
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: smux-light-theme-dmg
+          path: smux-light-theme.dmg
