@@ -77,7 +77,7 @@ struct TerminalSurfaceView: NSViewRepresentable {
         let ansi = colors.ansiColors
         if ansi.count == 16 {
             let swiftTermColors: [SwiftTerm.Color] = ansi.map { nsColor in
-                let c = nsColor.usingColorSpace(.sRGB) ?? nsColor
+                let c = nsColor.usingColorSpace(NSColorSpace.sRGB) ?? nsColor
                 return SwiftTerm.Color(
                     red: UInt16(c.redComponent * 65535),
                     green: UInt16(c.greenComponent * 65535),

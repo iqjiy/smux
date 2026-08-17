@@ -31,10 +31,17 @@ Requires macOS 14 or later. Free and open source.
 | Close | `Cmd + W` |
 | Zoom | `Cmd + Shift + Enter` |
 | Toggle notifications (off/on/silent) | `Cmd + B` |
+| Toggle Light/Dark theme | `Cmd + Shift + L` |
 | Navigate | `Option + Arrow keys` |
 | Switch workspace | `Option + Shift + Arrow keys` |
 | New workspace | `Cmd + Shift + T` |
 | Show all shortcuts | `Cmd + /` |
+
+## Theme
+
+smux supports both **dark** and **light** themes. Toggle with `Cmd + Shift + L` or via the View menu.
+
+The light theme uses a carefully tuned ANSI color palette — all 16 terminal colors are darkened to remain clearly readable on a white background. Your preference is saved automatically.
 
 ## Build from source
 
