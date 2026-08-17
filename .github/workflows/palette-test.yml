@@ -9,6 +9,12 @@ jobs:
   palette-test:
     runs-on: macos-14
     steps:
+      - name: Select latest Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "Using: $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+
       - name: Checkout SwiftTerm
         uses: actions/checkout@v4
         with:
