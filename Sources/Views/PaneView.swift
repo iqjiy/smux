@@ -1,17 +1,17 @@
 import SwiftUI
 
-private let bgDark = Color(nsColor: NSColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1))
-private let bgTitlebar = Color(nsColor: NSColor(red: 0.12, green: 0.12, blue: 0.14, alpha: 1))
-private let borderDim = Color(nsColor: NSColor(red: 0.22, green: 0.22, blue: 0.24, alpha: 1))
 private let attentionOrange = Color(red: 0.9, green: 0.55, blue: 0.1)
 private let activeGreen = Color(red: 0.2, green: 0.55, blue: 0.3)
 private let focusBlue = Color(red: 0.35, green: 0.55, blue: 0.95)
 
 struct PaneView: View {
     @EnvironmentObject var workspaceManager: WorkspaceManager
+    @EnvironmentObject var themeManager: ThemeManager
     @ObservedObject var panel: TerminalPanel
     @ObservedObject var workspace: Workspace
     let nodeID: UUID
+
+    private var theme: ThemeColors { themeManager.colors }
 
     private var isFocused: Bool {
         workspace.focusedPanelID == panel.id
@@ -43,7 +43,7 @@ struct PaneView: View {
         if case .active = panel.activityState {
             return activeGreen.opacity(0.5)
         }
-        return borderDim
+        return theme.borderDim
     }
 
     private var borderWidth: CGFloat {
@@ -65,7 +65,7 @@ struct PaneView: View {
                 } else {
                     Text(panel.title)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(isFocused ? .white.opacity(0.9) : .white.opacity(0.4))
+                        .foregroundColor(isFocused ? theme.titleFocused : theme.titleUnfocused)
                         .lineLimit(1)
                         .contextMenu {
                             Button("Rename") {
@@ -79,7 +79,7 @@ struct PaneView: View {
                 if case .exited(let code) = panel.activityState {
                     Text("exit \(code)")
                         .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(code == 0 ? .white.opacity(0.3) : .red.opacity(0.8))
+                        .foregroundColor(code == 0 ? theme.exitCodeNormal : .red.opacity(0.8))
                 }
 
                 // Watch toggle + split/close buttons
@@ -109,7 +109,7 @@ struct PaneView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(panel.needsAttention ? attentionOrange.opacity(0.15) : bgTitlebar)
+            .background(panel.needsAttention ? attentionOrange.opacity(0.15) : theme.titlebarBackground)
             .onTapGesture {
                 panel.clearAttention()
                 workspace.focusedPanelID = panel.id
@@ -123,7 +123,7 @@ struct PaneView: View {
                     workspace.focusedPanelID = panel.id
                 }
         }
-        .background(bgDark)
+        .background(theme.paneBackground)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -133,6 +133,7 @@ struct PaneView: View {
 }
 
 struct PaneTitleButton: View {
+    @EnvironmentObject var themeManager: ThemeManager
     let systemName: String
     let help: String
     let action: () -> Void
@@ -141,7 +142,7 @@ struct PaneTitleButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundColor(themeManager.colors.buttonIcon)
                 .frame(width: 20, height: 20)
                 .contentShape(Rectangle())
         }

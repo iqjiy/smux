@@ -3,6 +3,7 @@ import SwiftTerm
 import Darwin
 
 struct TerminalSurfaceView: NSViewRepresentable {
+    @EnvironmentObject var themeManager: ThemeManager
     let panel: TerminalPanel
     let isFocused: Bool
     let isWorkspaceSelected: Bool
@@ -16,6 +17,7 @@ struct TerminalSurfaceView: NSViewRepresentable {
         // Reuse existing terminal view if the panel already has one (survives workspace switches)
         if let existing = panel.terminalView as? SmuxTerminalView {
             context.coordinator.terminalView = existing
+            applyTheme(to: existing)
             return existing
         }
 
@@ -24,10 +26,9 @@ struct TerminalSurfaceView: NSViewRepresentable {
         tv.processDelegate = context.coordinator
         context.coordinator.terminalView = tv
 
-        // Dark theme
+        // Apply theme colors
         tv.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        tv.nativeBackgroundColor = NSColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1)
-        tv.nativeForegroundColor = NSColor(red: 0.85, green: 0.85, blue: 0.85, alpha: 1)
+        applyTheme(to: tv)
 
         let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
         let home = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
@@ -41,7 +42,6 @@ struct TerminalSurfaceView: NSViewRepresentable {
         // Replay saved scrollback from previous session
         if let scrollback = panel.scrollbackToRestore {
             panel.scrollbackToRestore = nil
-            // Convert newlines to CR+LF for terminal emulator and add a separator
             let lines = scrollback.components(separatedBy: "\n")
             let crlfText = lines.joined(separator: "\r\n")
             tv.feed(text: crlfText + "\r\n")
@@ -54,12 +54,37 @@ struct TerminalSurfaceView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        // Re-apply theme on every update (handles live theme switching)
+        if let tv = nsView as? SmuxTerminalView {
+            applyTheme(to: tv)
+        }
+
         if isFocused && isWorkspaceSelected && !panel.isRenaming && !suppressFocus {
             DispatchQueue.main.async {
                 if let window = nsView.window, window.firstResponder !== nsView {
                     window.makeFirstResponder(nsView)
                 }
             }
+        }
+    }
+
+    private func applyTheme(to tv: SmuxTerminalView) {
+        let colors = themeManager.colors
+        tv.nativeBackgroundColor = colors.terminalBackground
+        tv.nativeForegroundColor = colors.terminalForeground
+
+        // Apply ANSI color palette using SwiftTerm's Color type (16-bit RGB)
+        let ansi = colors.ansiColors
+        if ansi.count == 16 {
+            let swiftTermColors: [SwiftTerm.Color] = ansi.map { nsColor in
+                let c = nsColor.usingColorSpace(.sRGB) ?? nsColor
+                return SwiftTerm.Color(
+                    red: UInt16(c.redComponent * 65535),
+                    green: UInt16(c.greenComponent * 65535),
+                    blue: UInt16(c.blueComponent * 65535)
+                )
+            }
+            tv.installColors(swiftTermColors)
         }
     }
 

@@ -46,6 +46,7 @@ struct SidebarView: View {
 }
 
 struct WorkspaceRow: View {
+    @EnvironmentObject var themeManager: ThemeManager
     @ObservedObject var workspace: Workspace
     var isSelected: Bool = false
     @State private var isHovered: Bool = false
@@ -81,7 +82,7 @@ struct WorkspaceRow: View {
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(
-                    isSelected ? Color.white.opacity(0.1) : isHovered ? Color.white.opacity(0.05) : Color.clear
+                    isSelected ? themeManager.colors.sidebarSelectedBg : isHovered ? themeManager.colors.sidebarHoveredBg : Color.clear
                 )
         )
         .contentShape(Rectangle())

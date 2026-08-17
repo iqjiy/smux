@@ -5,18 +5,20 @@ struct smuxApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var workspaceManager = WorkspaceManager()
     @StateObject private var activityDetector = ActivityDetector()
+    @StateObject private var themeManager = ThemeManager.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(workspaceManager)
                 .environmentObject(activityDetector)
-                .preferredColorScheme(.dark)
+                .environmentObject(themeManager)
+                .preferredColorScheme(themeManager.currentMode == .dark ? .dark : .light)
                 .onAppear {
                     guard !workspaceManager.hasInitialized else { return }
                     workspaceManager.hasInitialized = true
 
-                    NSApp.appearance = NSAppearance(named: .darkAqua)
+                    themeManager.applyAppearance()
                     activityDetector.start(workspaceManager: workspaceManager)
                     PersistenceManager.shared.restore(into: workspaceManager)
                     // Autosave every 30 seconds
@@ -32,7 +34,7 @@ struct smuxApp: App {
                 }
         }
         .commands {
-            AppCommands(workspaceManager: workspaceManager)
+            AppCommands(workspaceManager: workspaceManager, themeManager: themeManager)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)

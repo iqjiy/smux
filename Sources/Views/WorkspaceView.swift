@@ -1,13 +1,12 @@
 import SwiftUI
 
-private let bgWorkspace = Color(nsColor: NSColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 1))
-
 struct WorkspaceView: View {
+    @EnvironmentObject var themeManager: ThemeManager
     @ObservedObject var workspace: Workspace
 
     var body: some View {
         ZStack {
-            bgWorkspace.ignoresSafeArea()
+            themeManager.colors.workspaceBackground.ignoresSafeArea()
 
             if workspace.isZoomed, let focusedID = workspace.focusedPanelID,
                let panel = workspace.panels[focusedID] {

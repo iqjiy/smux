@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AppCommands: Commands {
     @ObservedObject var workspaceManager: WorkspaceManager
+    @ObservedObject var themeManager: ThemeManager
 
     var body: some Commands {
         // MARK: - File Menu
@@ -12,6 +13,15 @@ struct AppCommands: Commands {
                 workspaceManager.selectedWorkspaceID = ws.id
             }
             .keyboardShortcut("t", modifiers: [.command, .shift])
+        }
+
+        // MARK: - View Menu (Theme)
+
+        CommandGroup(after: .toolbar) {
+            Button("Toggle Light/Dark Theme") {
+                themeManager.toggle()
+            }
+            .keyboardShortcut("l", modifiers: [.command, .shift])
         }
 
         // MARK: - Pane Menu
