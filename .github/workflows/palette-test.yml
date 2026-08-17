@@ -1,0 +1,137 @@
+name: ANSI Palette Headless Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/light-theme]
+
+jobs:
+  palette-test:
+    runs-on: macos-14
+    steps:
+      - name: Checkout SwiftTerm
+        uses: actions/checkout@v4
+        with:
+          repository: migueldeicaza/SwiftTerm
+
+      - name: Write headless palette test
+        run: |
+          mkdir -p /tmp/test/Sources/test
+          cat > /tmp/test/Package.swift <<'PKG'
+          // swift-tools-version:5.9
+          import PackageDescription
+          let package = Package(
+              name: "palette-test",
+              dependencies: [
+                  .package(path: "/tmp/swiftterm")
+              ],
+              targets: [
+                  .executableTarget(
+                      name: "test",
+                      dependencies: [.product(name: "SwiftTerm", package: "SwiftTerm")],
+                      path: "Sources/test"
+                  )
+              ]
+          )
+          PKG
+          cat > /tmp/test/Sources/test/main.swift <<'SWIFT'
+          import Foundation
+          import SwiftTerm
+
+          // Light-theme palette from AppTheme.swift lightANSI (red8 values)
+          let lightANSI: [SwiftTerm.Color] = [
+              Color(red8: 0, green8: 0, blue8: 0),
+              Color(red8: 191, green8: 13, blue8: 13),
+              Color(red8: 26, green8: 133, blue8: 26),
+              Color(red8: 140, green8: 107, blue8: 0),
+              Color(red8: 26, green8: 51, blue8: 184),
+              Color(red8: 158, green8: 20, blue8: 133),
+              Color(red8: 0, green8: 115, blue8: 128),
+              Color(red8: 115, green8: 115, blue8: 120),
+              Color(red8: 89, green8: 89, blue8: 97),
+              Color(red8: 224, green8: 38, blue8: 38),
+              Color(red8: 38, green8: 158, blue8: 38),
+              Color(red8: 173, green8: 133, blue8: 0),
+              Color(red8: 51, green8: 89, blue8: 217),
+              Color(red8: 191, green8: 46, blue8: 166),
+              Color(red8: 13, green8: 140, blue8: 153),
+              Color(red8: 64, green8: 64, blue8: 71),
+          ]
+
+          let options = TerminalOptions(cols: 80, rows: 10)
+          let term = Terminal(delegate: Stub(), options: options)
+          term.foregroundColor = Color(red8: 33, green8: 33, blue8: 38)
+          term.backgroundColor = Color(red8: 250, green8: 250, blue8: 252)
+          term.installPalette(colors: lightANSI)
+
+          // Feed ANSI colors
+          term.feed(text: "\u{1b}[0mDefault \u{1b}[31mRed \u{1b}[32mGreen \u{1b}[33mYellow \u{1b}[91mBrightRed \u{1b}[0m\n")
+
+          // Inspect cells on row 0
+          var line = ""
+          var sawAnsi = false
+          var sawNonDefault = false
+          for col in 0..<term.cols {
+              if let cell = term.getCharData(col: col, row: 0) {
+                  switch cell.fg {
+                  case .ansi256(let code):
+                      sawAnsi = true
+                      if code != 0 { sawNonDefault = true }
+                      line += "[\(code)]"
+                  case .trueColor(_, _, _):
+                      line += "[T]"
+                  case .defaultColor: line += "[D]"
+                  case .defaultInvertedColor: line += "[I]"
+                  }
+              }
+          }
+          print("CELLS: \(line)")
+          print("SAW_ANSI=\(sawAnsi) SAW_NON_DEFAULT=\(sawNonDefault)")
+          print("ANSI[1] red   = \(term.ansiColors[1].red),\(term.ansiColors[1].green),\(term.ansiColors[1].blue)")
+          print("ANSI[3] yellow= \(term.ansiColors[3].red),\(term.ansiColors[3].green),\(term.ansiColors[3].blue)")
+          print("EXPECTED[1]    = \(191*257),\(13*257),\(13*257)")
+
+          class Stub: TerminalDelegate {
+              public init() {}
+              public func send (source: Terminal, data: ArraySlice<UInt8>) {}
+              public func sizeChanged (source: Terminal, newCols: Int, newRows: Int) {}
+              public func setTerminalTitle (source: Terminal, title: String) {}
+              public func hostCurrentDirectoryUpdated (source: Terminal) {}
+              public func processTerminated (source: Terminal, exitCode: Int32?) {}
+              public func setForegroundColor(source: Terminal, color: Color) {}
+              public func setBackgroundColor(source: Terminal, color: Color) {}
+              public func setCursorColor(source: Terminal, color: Color?, textColor: Color?) {}
+              public func colorChanged(source: Terminal, idx: Int?) {}
+              public func windowTitleChanged(source: Terminal, title: String) {}
+              public func mouseModeChanged(source: Terminal) {}
+              public func bell(source: Terminal) {}
+              public func clipboardChanged(source: Terminal, content: String) {}
+              public func resized(source: Terminal, newRows: Int, newCols: Int) {}
+              public func scrolled(source: Terminal, position: Int) {}
+              public func sendPaste(source: Terminal, text: String) {}
+              public func sendString(source: Terminal, text: String) {}
+              public func requestOpenLink(source: Terminal, url: String, params: String) {}
+              public func showCursor(source: Terminal) {}
+              public func hideCursor(source: Terminal) {}
+              public func sessionRestoreDataRequested(source: Terminal) -> [Data] { return [] }
+              public func sessionDataChanged(source: Terminal) {}
+              public func bannerChanged(source: Terminal) {}
+          }
+          SWIFT
+
+      - name: Symlink SwiftTerm for local path dependency
+        run: ln -s "$PWD" /tmp/swiftterm
+
+      - name: Build and run palette test
+        run: |
+          cd /tmp/test
+          swift build 2>&1 | tail -5
+          ./$(swift build --show-bin-path)/test
+
+      - name: Verify ANSI colors present
+        run: |
+          cd /tmp/test
+          ./$(swift build --show-bin-path)/test | tee /tmp/test-output.txt
+          grep -q "SAW_ANSI=true" /tmp/test-output.txt || (echo "FAIL: no ANSI color codes in cells" && exit 1)
+          grep -q "SAW_NON_DEFAULT=true" /tmp/test-output.txt || (echo "FAIL: no non-default fg colors" && exit 1)
+          echo "PASS: ANSI palette renders correctly"
